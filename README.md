@@ -1,11 +1,13 @@
-# ESRS RAG
+# esrs-rag
 
 > On-premise **Retrieval-Augmented Generation** over the EU sustainability reporting
 > standards (ESRS), with **rigorous, baseline-anchored evaluation** of the retrieval stage.
 
-> 🚧 **Work in progress.** Retrieval is fully evaluated — dense, a hand-built BM25 baseline, and a
-> hybrid, with skill scores and a weight sweep. The generation stage and the evaluation dashboard
-> are under construction. Numbers below are a preliminary snapshot — see [Project status](#project-status).
+> 🚧 **Work in progress — not yet finished.** Retrieval is fully evaluated — dense, a hand-built
+> BM25 baseline, and a hybrid, with skill scores and a weight sweep. The generation stage is built
+> and has a first measurement; its human verification, the generation notebook and the evaluation
+> dashboard are still in progress. Numbers below are a preliminary snapshot — see
+> [Project status](#project-status).
 
 ## What this is
 
@@ -90,15 +92,17 @@ requirement, not a nice-to-have.
 | UI | `Streamlit` |
 
 Built with **explicit code, no orchestration framework** (LangChain/LlamaIndex) — every stage
-is spelled out and narrated in the notebooks rather than hidden behind abstractions.
+is spelled out rather than hidden behind abstractions.
 
 ## What's in this repo
 
 A **results showcase**, not the source pipeline:
 
-- **Evaluation notebooks** — corpus EDA, baselines, and the retrieval metrics & ablations, with
-  the key pipeline steps shown and explained inline.
-- A link to the **live Streamlit evaluation dashboard**.
+- **[`notebooks/1-retrieval-evaluation.ipynb`](notebooks/1-retrieval-evaluation.ipynb)** — corpus
+  EDA, baselines, retrieval metrics and ablations, presented as **results** (narrative, tables and
+  charts). The retrieval implementation itself is kept out; the notebook only reads precomputed
+  results and plots them.
+- A **Streamlit evaluation dashboard** *(planned — see Project status)*.
 
 The raw pipeline scripts and the corpus PDFs are not committed.
 
@@ -109,7 +113,8 @@ The raw pipeline scripts and the corpus PDFs are not committed.
 - [x] Indexing — ChromaDB + e5-base, persistent and local (Spanish + English)
 - [x] BM25 baseline + retrieval metrics (skill scores vs BM25 and random)
 - [x] Hybrid retrieval (dense + lexical) — RRF with a fusion-weight sweep
-- [ ] Generation stage (Ollama)
+- [ ] Generation stage (Ollama) — *built and running; first metrics measured, human verification in progress*
+- [ ] Generation notebook — faithfulness, answer rate, abstention vs. hallucination
 - [ ] Evaluation dashboard + final results
 - [ ] Cross-lingual ablation (English questions) and chunk-size / `k` sweeps
 
@@ -131,3 +136,4 @@ The raw pipeline scripts and the corpus PDFs are not committed.
 
 The ESRS corpus is official EU legislation (Regulation (EU) 2023/2772), reusable with
 attribution. Source: EU Publications Office.
+
