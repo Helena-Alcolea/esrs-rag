@@ -3,11 +3,11 @@
 > On-premise **Retrieval-Augmented Generation** over the EU sustainability reporting
 > standards (ESRS), with **rigorous, baseline-anchored evaluation** of the retrieval stage.
 
-> 🚧 **Work in progress — not yet finished.** Retrieval is fully evaluated — dense, a hand-built
-> BM25 baseline, and a hybrid, with skill scores and a weight sweep. The generation stage is built
-> and has a first measurement; its human verification, the generation notebook and the evaluation
-> dashboard are still in progress. Numbers below are a preliminary snapshot — see
-> [Project status](#project-status).
+> 🚧 **Work in progress — not yet finished.** **Retrieval and generation are both evaluated** —
+> retrieval against a hand-built BM25 baseline and a hybrid (skill scores, weight sweep); generation
+> for answer rate, abstention and hallucination, with **every answer read by a human**. What remains:
+> chunk-size / `k` sweeps and the interactive dashboard. Numbers below are a snapshot that may still
+> shift with the sweeps — see [Project status](#project-status).
 
 ## What this is
 
@@ -45,30 +45,49 @@ translation step, and the generation layer runs *after* retrieval — so it cann
 paragraph that retrieval never found. *Which* corpus best serves a Spanish user is therefore
 treated as an empirical question and measured, not assumed.
 
-## Results so far (retrieval, preliminary)
+## Results so far — retrieval
 
-Measured on the 38 evaluation questions that anchor to a specific paragraph, **Spanish questions
-against the Spanish corpus** (the primary configuration). A work-in-progress snapshot, not final
-figures. Anchoring is language-invariant, so the comparison across corpora is apples-to-apples;
-because chunking is one paragraph per record, the corpora have near-identical size (1,700 vs 1,697),
-neutralising the usual length confounder.
+Measured on the 37 evaluation questions that anchor to a specific paragraph, **Spanish questions
+against the Spanish corpus** (the primary configuration). A snapshot that may still shift with the
+pending ablations. Anchoring is language-invariant, so the comparison across corpora is
+apples-to-apples; because chunking is one paragraph per record, the corpora have near-identical size
+(1,700 vs 1,697), neutralising the usual length confounder.
 
-- **Dense retrieval (e5-base):** `recall@5 = 0.55`, `recall@10 = 0.61`, `MRR = 0.31`. A modest
+- **Dense retrieval (e5-base):** `recall@5 = 0.57`, `recall@10 = 0.65`, `MRR = 0.32`. A modest
   starting point *by design* — a corpus that scored 0.97 out of the box would leave nothing to
   demonstrate.
-- **Semantic beats lexical, same language:** BM25 reaches `recall@5 = 0.40`; dense beats it with a
-  **skill score of +0.26 over BM25** (and +0.55 over a random baseline).
+- **Semantic beats lexical, same language:** BM25 reaches `recall@5 = 0.38`; dense beats it with a
+  **skill score of +0.30 over BM25** (and +0.56 over a random baseline).
 - **Lexical retrieval collapses across languages:** the same BM25 drops to `recall@5 = 0.05` when
   Spanish questions are run against the *English* corpus — barely above random, because almost no
   content words match. This is the strongest argument for multilingual semantic retrieval, and it
   is measured rather than asserted.
 - **Hybrid (dense + BM25 via Reciprocal Rank Fusion), reported honestly:** naive equal-weight
   fusion *hurts* recall — it regresses toward the weaker retriever. A weight sweep recovers a real
-  gain in ranking quality (`MRR 0.31 → 0.37`) but **not** in top-5 recall, where the deltas are
-  within noise (~1 question out of 38). Reported as-is, not cherry-picked.
+  gain in ranking quality (`MRR 0.32 → 0.38`) but **not** in top-5 recall, where the deltas are
+  within noise (~1 question out of 37). Reported as-is, not cherry-picked.
 - **Contamination bias, quantified:** questions written while reading the source paragraph score
-  higher (`recall@10 = 0.86`) than the hand-written user-language questions (`0.55`). That gap is
+  higher (`recall@10 = 0.86`) than the hand-written user-language questions (`0.60`). That gap is
   the *measured* cost of the bias, reported next to the headline numbers instead of hidden.
+
+## Results so far — generation
+
+Measured on the 45 questions with a local LLM (`llama3.2:3b`, `temperature = 0`), pipeline frozen
+(the prompt was tuned only on a throwaway dev set, never on the eval set). **Every answer was read
+by a human** against the source paragraph.
+
+- **The faithfulness ↔ answer-rate trade-off, measured.** A system that says *"I don't know"* to
+  everything scores a perfect faithfulness of 1.0 and is useless — that was literally the earlier
+  demo (**0% answer rate**). The honest measurement tracks **both** ends at once:
+  - **Answer rate: 84%** (26/31) on questions that have an answer (the demo was 0%); cowardice
+    (abstaining when it shouldn't) is 16%.
+  - **Abstention: 58%** (7/12) on out-of-corpus questions → **hallucination: 42%** (5/12), i.e.
+    answering when it should stay silent. This is the next target.
+- **Retrieval and generation are measured separately — and this is why.** One out-of-corpus answer
+  was correct *from the model's pre-training* while retrieval had missed the defining paragraph: a
+  right answer masking a retrieval failure. Looking only at the final answer would hide it.
+- **The abstention detector is a heuristic, hand-checked 12/12.** A metric you don't spot-check is a
+  metric you don't trust.
 
 ## Runs 100% on-premise
 
@@ -102,6 +121,9 @@ A **results showcase**, not the source pipeline:
   EDA, baselines, retrieval metrics and ablations, presented as **results** (narrative, tables and
   charts). The retrieval implementation itself is kept out; the notebook only reads precomputed
   results and plots them.
+- **[`notebooks/2-generation-evaluation.ipynb`](notebooks/2-generation-evaluation.ipynb)** —
+  generation quality: the faithfulness ↔ answer-rate trade-off, abstention vs. hallucination, and
+  the failure modes surfaced by hand-reading every answer.
 - A **Streamlit evaluation dashboard** *(planned — see Project status)*.
 
 The raw pipeline scripts and the corpus PDFs are not committed.
@@ -113,10 +135,11 @@ The raw pipeline scripts and the corpus PDFs are not committed.
 - [x] Indexing — ChromaDB + e5-base, persistent and local (Spanish + English)
 - [x] BM25 baseline + retrieval metrics (skill scores vs BM25 and random)
 - [x] Hybrid retrieval (dense + lexical) — RRF with a fusion-weight sweep
-- [ ] Generation stage (Ollama) — *built and running; first metrics measured, human verification in progress*
-- [ ] Generation notebook — faithfulness, answer rate, abstention vs. hallucination
-- [ ] Evaluation dashboard + final results
-- [ ] Cross-lingual ablation (English questions) and chunk-size / `k` sweeps
+- [x] Generation stage (Ollama) — measured on 45 questions, **every answer human-verified**
+- [x] Generation notebook — the faithfulness ↔ answer-rate trade-off, abstention vs. hallucination
+- [ ] Chunk-size and `k` sweeps (tuning the deployed Spanish configuration)
+- [ ] Interactive evaluation dashboard — live semantic search + precomputed answer gallery + metrics
+- [ ] *(optional)* Cross-lingual ablation — English questions against the English corpus
 
 ## Notes & limitations
 
@@ -128,12 +151,11 @@ The raw pipeline scripts and the corpus PDFs are not committed.
   exhaustive search, not on human reading — one cannot read a paragraph that proves an absence.
 - **Source anchoring** is to `standard · §paragraph`, which is intrinsic to the document and
   survives re-extraction and changes in chunk size — never to a chunk index.
-- **Numbers are preliminary.** Retrieval metrics run on 38 anchored questions; recall deltas of
+- **Numbers may still shift.** Retrieval metrics run on 37 anchored questions; recall deltas of
   ~1 question are treated as noise (improvements below ~0.03 are not trusted), and figures may shift
-  as the evaluation set grows and chunk-size / `k` are swept.
+  as chunk-size / `k` are swept.
 
 ## License & attribution
 
 The ESRS corpus is official EU legislation (Regulation (EU) 2023/2772), reusable with
 attribution. Source: EU Publications Office.
-
