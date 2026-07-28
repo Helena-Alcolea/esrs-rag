@@ -5,9 +5,9 @@
 
 > 🚧 **Work in progress — not yet finished.** **Retrieval and generation are both evaluated** —
 > retrieval against a hand-built BM25 baseline and a hybrid (skill scores, weight sweep); generation
-> for answer rate, abstention and hallucination, with **every answer read by a human**. What remains:
-> chunk-size / `k` sweeps and the interactive dashboard. Numbers below are a snapshot that may still
-> shift with the sweeps — see [Project status](#project-status).
+> for answer rate, abstention and hallucination, with **every answer read by a human**. The
+> configuration sweeps (`k`, chunking) are done and reported. What remains: the interactive
+> dashboard — see [Project status](#project-status).
 
 ## What this is
 
@@ -79,15 +79,29 @@ by a human** against the source paragraph.
 - **The faithfulness ↔ answer-rate trade-off, measured.** A system that says *"I don't know"* to
   everything scores a perfect faithfulness of 1.0 and is useless — that was literally the earlier
   demo (**0% answer rate**). The honest measurement tracks **both** ends at once:
-  - **Answer rate: 84%** (26/31) on questions that have an answer (the demo was 0%); cowardice
-    (abstaining when it shouldn't) is 16%.
-  - **Abstention: 58%** (7/12) on out-of-corpus questions → **hallucination: 42%** (5/12), i.e.
+  - **Answer rate: 81%** (25/31) on questions that have an answer (the demo was 0%); over-refusal
+    (abstaining when it shouldn't) is 19%.
+  - **Abstention: 67%** (8/12) on out-of-corpus questions → **hallucination: 33%** (4/12), i.e.
     answering when it should stay silent. This is the next target.
+  - **Numeric accuracy: 4/4** on the questions whose answer is a specific figure — gradable by
+    string match, with no LLM judge involved.
 - **Retrieval and generation are measured separately — and this is why.** One out-of-corpus answer
   was correct *from the model's pre-training* while retrieval had missed the defining paragraph: a
   right answer masking a retrieval failure. Looking only at the final answer would hide it.
 - **The abstention detector is a heuristic, hand-checked 12/12.** A metric you don't spot-check is a
   metric you don't trust.
+- **How much context to give the model was swept, not guessed.** `k` (paragraphs pasted into the
+  prompt) shows an **inverted U**: too few and the answer isn't there; at `k = 20` numeric accuracy
+  collapses from 4/4 to 1/4 because the model reads the *neighbouring* paragraph. `k = 8` is frozen
+  at the lower edge of the plateau.
+- **A measured noise floor for generation (±1–2 questions).** `temperature = 0` is deterministic
+  within a run, but re-running an unchanged configuration in a new session can reword an answer —
+  enough to flip a phrase-matched check on unchanged content. Differences smaller than that are not
+  claimed as effects. Found by re-running a configuration that had not changed.
+- **A chunking change that improved retrieval was reverted.** Splitting the ~1% of paragraphs that
+  exceed the embedding window raised `recall@5` (0.568 → 0.595, +1 question) — but cost **2 questions
+  of answer rate**, because the model then receives a *fragment* and the answer lives in the other
+  piece. Net negative end-to-end, so it was rolled back. Measuring retrieval alone would have shipped it.
 
 ## Runs 100% on-premise
 
@@ -137,9 +151,8 @@ The raw pipeline scripts and the corpus PDFs are not committed.
 - [x] Hybrid retrieval (dense + lexical) — RRF with a fusion-weight sweep
 - [x] Generation stage (Ollama) — measured on 45 questions, **every answer human-verified**
 - [x] Generation notebook — the faithfulness ↔ answer-rate trade-off, abstention vs. hallucination
-- [ ] Chunk-size and `k` sweeps (tuning the deployed Spanish configuration)
+- [x] Configuration sweeps — `k` (inverted U, frozen at 8) and chunking (split variant, reverted)
 - [ ] Interactive evaluation dashboard — live semantic search + precomputed answer gallery + metrics
-- [ ] *(optional)* Cross-lingual ablation — English questions against the English corpus
 
 ## Notes & limitations
 
@@ -151,9 +164,14 @@ The raw pipeline scripts and the corpus PDFs are not committed.
   exhaustive search, not on human reading — one cannot read a paragraph that proves an absence.
 - **Source anchoring** is to `standard · §paragraph`, which is intrinsic to the document and
   survives re-extraction and changes in chunk size — never to a chunk index.
-- **Numbers may still shift.** Retrieval metrics run on 37 anchored questions; recall deltas of
-  ~1 question are treated as noise (improvements below ~0.03 are not trusted), and figures may shift
-  as chunk-size / `k` are swept.
+- **Small sample, declared noise floors.** Retrieval metrics run on 37 anchored questions: recall
+  deltas of ~1 question are treated as noise (improvements below ~0.03 are not trusted). Generation
+  runs on 45 questions and carries a **measured ±1–2 question run-to-run wobble**; differences below
+  that are not claimed as effects.
+- **The configuration was swept on the evaluation set, and that is declared.** `k` and chunking were
+  compared over the same 45 questions used for reporting. Both decisions were taken on the *shape and
+  mechanism* of the result — the inverted U, the fragment effect — rather than on which value scored
+  highest, precisely because the score differences sit inside the noise floors above.
 
 ## License & attribution
 
