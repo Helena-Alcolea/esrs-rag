@@ -4,9 +4,10 @@
 > (ESRS), with **rigorous, baseline-anchored evaluation of both stages** — retrieval *and*
 > generation, measured separately.
 
-> 🚧 **Work in progress.** Both stages are built, measured and human-verified, and the
-> configuration sweeps (`k`, chunking) are done. What remains is **deploying the interactive
-> dashboard**.
+> **Status:** both stages are built, measured and **human-verified**; the configuration sweeps
+> (`k`, chunking) are done and reported; the search dashboard is **live** (link below). What is
+> still open is the next research step — cutting the hallucination rate — see
+> [Project status](#project-status).
 
 ## What this is
 
@@ -18,15 +19,34 @@ Why RAG and not a fine-tuned model? Because the regulation *changes* — the ESR
 July 2026, while this project was being built. A RAG system updates by **re-indexing one
 document**; a fine-tuned model would need full retraining and still could not cite its source.
 
-## Live demo
+## Live demo — and what it is *not*
 
-*(Link coming — the app is built and runs locally; deployment is the last open item.)*
+### ▶ **[esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)**
 
-The dashboard runs **live semantic search** over the 1,700 indexed paragraphs: you type a question
-in Spanish or English and see exactly which paragraphs the system retrieves, with the similarity
-that put each one there. **Generation is deliberately not hosted** — running the LLM on someone
-else's servers would break the on-premise guarantee this project is built on, so generated answers
-are produced offline and reported in the notebooks.
+The hosted dashboard runs **live semantic search** over the 1,700 indexed paragraphs: you type a
+question in Spanish or English and see exactly which paragraphs the system retrieves, with the
+similarity that put each one there.
+
+**It is the light half of the system, and it is not the on-premise deployment.** Two things are
+worth being explicit about, because the distinction is the whole point of the project:
+
+| | **The full system** | **The hosted demo** |
+|---|---|---|
+| Where it runs | your machine | Streamlit's servers |
+| Retrieval | local | hosted |
+| **Generation (the LLM)** | **local — `llama3.2:3b` via Ollama** | **not hosted at all** |
+| Data leaving the machine | **none** | the visitor's typed query |
+| What it is for | the real thing — this is what the notebooks measure | letting a stranger try the search without installing anything |
+
+**The complete system — corpus, embeddings and LLM, all local, with no document ever leaving the
+machine — is the one you run yourself**, and it is the one every number in this repository comes
+from. Generation is *deliberately* absent from the hosted demo: putting the LLM on someone else's
+servers would contradict the guarantee the project is built on. Generated answers are produced
+offline and reported in **[notebook 2](notebooks/2-generation-evaluation.ipynb)**.
+
+The demo can be public without contradiction because this corpus is **public EU legislation** —
+there is nothing confidential in it. The on-premise guarantee is what matters when the corpus is a
+company's own documents, which is exactly the case this architecture is designed for.
 
 ## Why it's different: the evaluation
 
@@ -119,10 +139,18 @@ by a human** against the source paragraph.
 
 ## Runs 100% on-premise
 
+This describes **the system as it runs on your own machine** — the complete pipeline, the one the
+evaluation measures, not the hosted demo above.
+
 No external APIs. No credentials anywhere. **No document leaves the machine.** Embeddings run
 locally on CPU, the vector store is an on-disk library (no server, telemetry disabled), and
-generation runs on a local LLM. For ESG, legal or financial corpora this is a compliance/GDPR
-requirement, not a nice-to-have.
+**generation runs on a local LLM** (`llama3.2:3b` via Ollama) — the corpus, the embedding model
+and the language model all sit on the same box. For ESG, legal or financial corpora this is a
+compliance/GDPR requirement, not a nice-to-have.
+
+To run the full thing, including generation, you clone the repository, index the corpus and point
+it at a local Ollama. The hosted demo exists so that someone who will not do that can still see
+the retrieval stage work.
 
 ## Stack
 
@@ -152,9 +180,27 @@ A **results showcase**, not the source pipeline:
 - **[`notebooks/2-generation-evaluation.ipynb`](notebooks/2-generation-evaluation.ipynb)** —
   generation quality: the faithfulness ↔ answer-rate trade-off, abstention vs. hallucination, the
   `k` sweep, and the failure modes surfaced by hand-reading every answer.
-- **`app/`** — the Streamlit dashboard: live semantic search over the indexed corpus.
+- **`dashboard/`** — the Streamlit app: live semantic search over the indexed corpus.
 
 The raw pipeline scripts and the corpus PDFs are not committed.
+
+## Project status
+
+- [x] Corpus extraction — structure-aware, ~1,700 records (1,700 ES / 1,697 EN: paragraphs +
+      glossary + appendix rows)
+- [x] Evaluation set — 45 questions, hand-verified against the source paragraph
+- [x] Indexing — ChromaDB + e5-base, persistent and local (Spanish + English)
+- [x] BM25 baseline + retrieval metrics (skill scores vs BM25 and random)
+- [x] Hybrid retrieval (dense + lexical) — RRF with a fusion-weight sweep
+- [x] Generation stage (Ollama) — measured on 45 questions, **every answer human-verified**
+- [x] Both evaluation notebooks — retrieval and generation
+- [x] Configuration sweeps — `k` (inverted U, frozen at 8) and chunking (split variant, reverted)
+- [x] Interactive dashboard — built (live semantic search; generation stays offline by design)
+- [x] Dashboard deployed — **[esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)**
+- [ ] **Next:** cut the hallucination rate (33%), attacked *by method on a dev set* — never by
+      tuning against the 45 reported questions
+- [ ] *(optional)* English-questions ablation, out of curiosity — it does not measure the deployed
+      Spanish system
 
 ## Notes & limitations
 
