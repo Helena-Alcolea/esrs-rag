@@ -1,24 +1,32 @@
-# ESRS RAG
+# ESRS-RAG
 
-> On-premise **Retrieval-Augmented Generation** over the EU sustainability reporting
-> standards (ESRS), with **rigorous, baseline-anchored evaluation** of the retrieval stage.
+> On-premise **Retrieval-Augmented Generation** over the EU sustainability reporting standards
+> (ESRS), with **rigorous, baseline-anchored evaluation of both stages** — retrieval *and*
+> generation, measured separately.
 
-> 🚧 **Work in progress — not yet finished.** **Retrieval and generation are both evaluated** —
-> retrieval against a hand-built BM25 baseline and a hybrid (skill scores, weight sweep); generation
-> for answer rate, abstention and hallucination, with **every answer read by a human**. The
-> configuration sweeps (`k`, chunking) are done and reported. What remains: the interactive
-> dashboard — see [Project status](#project-status).
+> 🚧 **Work in progress.** Both stages are built, measured and human-verified, and the
+> configuration sweeps (`k`, chunking) are done. What remains is **deploying the interactive
+> dashboard** — see [Project status](#project-status).
 
 ## What this is
 
-A question-answering assistant over the **12 ESRS standards** (Commission Delegated
-Regulation (EU) 2023/2772). You ask a question in plain language; the system retrieves the
-relevant paragraphs from the corpus and generates an answer **grounded in those sources and
-citing them**.
+A question-answering assistant over the **12 ESRS standards** (Commission Delegated Regulation
+(EU) 2023/2772). You ask a question in plain language; the system retrieves the relevant
+paragraphs from the corpus and generates an answer **grounded in those sources and citing them**.
 
-Why RAG and not a fine-tuned model? Because the regulation *changes* — the ESRS were revised
-in July 2026, while this project was being built. A RAG system updates by **re-indexing one
+Why RAG and not a fine-tuned model? Because the regulation *changes* — the ESRS were revised in
+July 2026, while this project was being built. A RAG system updates by **re-indexing one
 document**; a fine-tuned model would need full retraining and still could not cite its source.
+
+## Live demo
+
+*(Link coming — the app is built and runs locally; deployment is the last open item.)*
+
+The dashboard runs **live semantic search** over the 1,700 indexed paragraphs: you type a question
+in Spanish or English and see exactly which paragraphs the system retrieves, with the similarity
+that put each one there. **Generation is deliberately not hosted** — running the LLM on someone
+else's servers would break the on-premise guarantee this project is built on, so generated answers
+are produced offline and reported in the notebooks.
 
 ## Why it's different: the evaluation
 
@@ -45,32 +53,37 @@ translation step, and the generation layer runs *after* retrieval — so it cann
 paragraph that retrieval never found. *Which* corpus best serves a Spanish user is therefore
 treated as an empirical question and measured, not assumed.
 
-## Results so far — retrieval
+## Results — retrieval
 
 Measured on the 37 evaluation questions that anchor to a specific paragraph, **Spanish questions
-against the Spanish corpus** (the primary configuration). A snapshot that may still shift with the
-pending ablations. Anchoring is language-invariant, so the comparison across corpora is
-apples-to-apples; because chunking is one paragraph per record, the corpora have near-identical size
-(1,700 vs 1,697), neutralising the usual length confounder.
+against the Spanish corpus** (the primary configuration). Anchoring is language-invariant, so the
+comparison across corpora is apples-to-apples; because chunking is one paragraph per record, the
+corpora have near-identical size (1,700 vs 1,697), neutralising the usual length confounder.
 
-- **Dense retrieval (e5-base):** `recall@5 = 0.57`, `recall@10 = 0.65`, `MRR = 0.32`. A modest
-  starting point *by design* — a corpus that scored 0.97 out of the box would leave nothing to
-  demonstrate.
-- **Semantic beats lexical, same language:** BM25 reaches `recall@5 = 0.38`; dense beats it with a
-  **skill score of +0.30 over BM25** (and +0.56 over a random baseline).
-- **Lexical retrieval collapses across languages:** the same BM25 drops to `recall@5 = 0.05` when
-  Spanish questions are run against the *English* corpus — barely above random, because almost no
-  content words match. This is the strongest argument for multilingual semantic retrieval, and it
-  is measured rather than asserted.
+- **Dense retrieval (e5-base):** the source paragraph is in the top 5 for **57%** of questions,
+  in the top 10 for **65%**, in the top 20 for **76%**. A modest starting point *by design* — a
+  corpus that scored 97% out of the box would leave nothing to demonstrate.
+- **Semantic beats lexical, same language:** BM25 finds the source in the top 5 for **38%**. Dense
+  beats it with a **skill score of +30%** — it removes three of every ten questions BM25 missed
+  (and **+56%** against a random baseline).
+- **Lexical retrieval collapses across languages:** the same BM25 drops to **5%** when Spanish
+  questions are run against the *English* corpus — barely above random, because almost no content
+  words match. This is the strongest argument for multilingual semantic retrieval, and it is
+  measured rather than asserted.
 - **Hybrid (dense + BM25 via Reciprocal Rank Fusion), reported honestly:** naive equal-weight
-  fusion *hurts* recall — it regresses toward the weaker retriever. A weight sweep recovers a real
-  gain in ranking quality (`MRR 0.32 → 0.38`) but **not** in top-5 recall, where the deltas are
-  within noise (~1 question out of 37). Reported as-is, not cherry-picked.
-- **Contamination bias, quantified:** questions written while reading the source paragraph score
-  higher (`recall@10 = 0.86`) than the hand-written user-language questions (`0.60`). That gap is
-  the *measured* cost of the bias, reported next to the headline numbers instead of hidden.
+  fusion *hurts* recall (**skill score −31%** against dense alone) — it regresses toward the weaker
+  retriever. A weight sweep recovers a real gain in ranking quality (**MRR 32% → 38%** of its
+  maximum) but **not** in top-5 recall, where the deltas stay within noise (~1 question out of 37,
+  i.e. ~3 points). Reported as-is, not cherry-picked.
+- **Contamination bias, quantified:** questions written while reading the source paragraph reach
+  **86%** at `recall@10`, against **60%** for the hand-written user-language questions. That
+  26-point gap is the *measured* cost of the bias, reported next to the headline numbers instead
+  of hidden.
 
-## Results so far — generation
+> Rates are percentages of the questions asked. `MRR` (mean reciprocal rank) is shown as a
+> percentage of its 1.0 maximum — 100% would mean the right paragraph is ranked *first* every time.
+
+## Results — generation
 
 Measured on the 45 questions with a local LLM (`llama3.2:3b`, `temperature = 0`), pipeline frozen
 (the prompt was tuned only on a throwaway dev set, never on the eval set). **Every answer was read
@@ -79,15 +92,15 @@ by a human** against the source paragraph.
 - **The faithfulness ↔ answer-rate trade-off, measured.** A system that says *"I don't know"* to
   everything scores a perfect faithfulness of 1.0 and is useless — that was literally the earlier
   demo (**0% answer rate**). The honest measurement tracks **both** ends at once:
-  - **Answer rate: 81%** (25/31) on questions that have an answer (the demo was 0%); over-refusal
-    (abstaining when it shouldn't) is 19%.
+  - **Answer rate: 81%** (25/31) on questions that have an answer; over-refusal (abstaining when it
+    shouldn't) is **19%**.
   - **Abstention: 67%** (8/12) on out-of-corpus questions → **hallucination: 33%** (4/12), i.e.
     answering when it should stay silent. This is the next target.
   - **Numeric accuracy: 4/4** on the questions whose answer is a specific figure — gradable by
     string match, with no LLM judge involved.
-- **Retrieval and generation are measured separately — and this is why.** One out-of-corpus answer
-  was correct *from the model's pre-training* while retrieval had missed the defining paragraph: a
-  right answer masking a retrieval failure. Looking only at the final answer would hide it.
+- **Retrieval and generation are measured separately — and this is why.** One answer was correct
+  *from the model's pre-training* while retrieval had missed the defining paragraph: a right answer
+  masking a retrieval failure. Looking only at the final answer would hide it.
 - **The abstention detector is a heuristic, hand-checked 12/12.** A metric you don't spot-check is a
   metric you don't trust.
 - **How much context to give the model was swept, not guessed.** `k` (paragraphs pasted into the
@@ -99,9 +112,10 @@ by a human** against the source paragraph.
   enough to flip a phrase-matched check on unchanged content. Differences smaller than that are not
   claimed as effects. Found by re-running a configuration that had not changed.
 - **A chunking change that improved retrieval was reverted.** Splitting the ~1% of paragraphs that
-  exceed the embedding window raised `recall@5` (0.568 → 0.595, +1 question) — but cost **2 questions
-  of answer rate**, because the model then receives a *fragment* and the answer lives in the other
-  piece. Net negative end-to-end, so it was rolled back. Measuring retrieval alone would have shipped it.
+  exceed the embedding window raised top-5 recall (**56.8% → 59.5%**, +1 question) — but cost **2
+  questions of answer rate**, because the model then receives a *fragment* and the answer lives in
+  the other piece. Net negative end-to-end, so it was rolled back. Measuring retrieval alone would
+  have shipped it.
 
 ## Runs 100% on-premise
 
@@ -136,23 +150,27 @@ A **results showcase**, not the source pipeline:
   charts). The retrieval implementation itself is kept out; the notebook only reads precomputed
   results and plots them.
 - **[`notebooks/2-generation-evaluation.ipynb`](notebooks/2-generation-evaluation.ipynb)** —
-  generation quality: the faithfulness ↔ answer-rate trade-off, abstention vs. hallucination, and
-  the failure modes surfaced by hand-reading every answer.
-- A **Streamlit evaluation dashboard** *(planned — see Project status)*.
+  generation quality: the faithfulness ↔ answer-rate trade-off, abstention vs. hallucination, the
+  `k` sweep, and the failure modes surfaced by hand-reading every answer.
+- **`app/`** — the Streamlit dashboard: live semantic search over the indexed corpus.
 
 The raw pipeline scripts and the corpus PDFs are not committed.
 
 ## Project status
 
-- [x] Corpus extraction — structure-aware, 1,697 records (paragraphs + glossary + appendices)
+- [x] Corpus extraction — structure-aware, ~1,700 records (1,700 ES / 1,697 EN: paragraphs +
+      glossary + appendix rows)
 - [x] Evaluation set — 45 questions, hand-verified against the source paragraph
 - [x] Indexing — ChromaDB + e5-base, persistent and local (Spanish + English)
 - [x] BM25 baseline + retrieval metrics (skill scores vs BM25 and random)
 - [x] Hybrid retrieval (dense + lexical) — RRF with a fusion-weight sweep
 - [x] Generation stage (Ollama) — measured on 45 questions, **every answer human-verified**
-- [x] Generation notebook — the faithfulness ↔ answer-rate trade-off, abstention vs. hallucination
+- [x] Both evaluation notebooks — retrieval and generation
 - [x] Configuration sweeps — `k` (inverted U, frozen at 8) and chunking (split variant, reverted)
-- [ ] Interactive evaluation dashboard — live semantic search + precomputed answer gallery + metrics
+- [x] Interactive dashboard — built (live semantic search; generation stays offline by design)
+- [ ] Dashboard deployed and linked from this page
+- [ ] *(optional)* English-questions ablation, out of curiosity — it does not measure the deployed
+      Spanish system
 
 ## Notes & limitations
 
@@ -164,14 +182,17 @@ The raw pipeline scripts and the corpus PDFs are not committed.
   exhaustive search, not on human reading — one cannot read a paragraph that proves an absence.
 - **Source anchoring** is to `standard · §paragraph`, which is intrinsic to the document and
   survives re-extraction and changes in chunk size — never to a chunk index.
-- **Small sample, declared noise floors.** Retrieval metrics run on 37 anchored questions: recall
-  deltas of ~1 question are treated as noise (improvements below ~0.03 are not trusted). Generation
-  runs on 45 questions and carries a **measured ±1–2 question run-to-run wobble**; differences below
-  that are not claimed as effects.
+- **Small sample, declared noise floors.** Retrieval metrics run on 37 anchored questions, so a
+  delta of ~1 question is ~3 points and is treated as noise. Generation runs on 45 questions and
+  carries a **measured ±1–2 question run-to-run wobble**; differences below that are not claimed as
+  effects.
 - **The configuration was swept on the evaluation set, and that is declared.** `k` and chunking were
   compared over the same 45 questions used for reporting. Both decisions were taken on the *shape and
   mechanism* of the result — the inverted U, the fragment effect — rather than on which value scored
   highest, precisely because the score differences sit inside the noise floors above.
+- **No similarity threshold is used to decide when to stay silent.** It was measured and rejected:
+  a nonsense query scores *higher* similarity than a real out-of-corpus question, so a cut-off
+  cannot separate them. Abstention is measured as a behaviour, not enforced with a number.
 
 ## License & attribution
 
