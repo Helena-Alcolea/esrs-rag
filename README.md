@@ -199,8 +199,6 @@ The raw pipeline scripts and the corpus PDFs are not committed.
 - [x] Dashboard deployed — **[esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)**
 - [ ] **Next:** cut the hallucination rate (33%), attacked *by method on a dev set* — never by
       tuning against the 45 reported questions
-- [ ] *(optional)* English-questions ablation, out of curiosity — it does not measure the deployed
-      Spanish system
 
 ## Notes & limitations
 
