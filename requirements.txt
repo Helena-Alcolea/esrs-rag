@@ -1,0 +1,6 @@
+# Dependencias SOLO de la app de Streamlit (app/streamlit_app.py).
+# La app no indexa ni genera: lee vectores precalculados (app/datos/) y solo
+# codifica la pregunta del usuario -> no necesita chromadb ni ollama.
+streamlit>=1.40
+numpy>=1.26
+sentence-transformers>=3.0
