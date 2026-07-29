@@ -1,0 +1,22 @@
+# "Nada sale de la máquina": Streamlit envía estadísticas de uso por defecto.
+# Se apaga explícitamente, igual que la telemetría de la base vectorial.
+[browser]
+gatherUsageStats = false
+
+# Los dos sistemas del diseño. El claro (Broadsheet) es el primario; el oscuro
+# (Nocturne) se elige desde el menú ⋮ -> Settings. Los mismos valores están en
+# PALETA dentro de app/streamlit_app.py, para los bloques de HTML propio.
+[theme]
+base = "light"
+
+[theme.light]
+backgroundColor = "#f3f2f2"
+secondaryBackgroundColor = "#eae9e9"
+textColor = "#201e1d"
+primaryColor = "#1B7F5A"
+
+[theme.dark]
+backgroundColor = "#161826"
+secondaryBackgroundColor = "#232532"
+textColor = "#e9e9ed"
+primaryColor = "#7FC9A3"
