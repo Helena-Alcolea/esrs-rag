@@ -6,7 +6,7 @@
 
 > 🚧 **Work in progress.** Both stages are built, measured and human-verified, and the
 > configuration sweeps (`k`, chunking) are done. What remains is **deploying the interactive
-> dashboard** — see [Project status](#project-status).
+> dashboard**.
 
 ## What this is
 
@@ -155,22 +155,6 @@ A **results showcase**, not the source pipeline:
 - **`app/`** — the Streamlit dashboard: live semantic search over the indexed corpus.
 
 The raw pipeline scripts and the corpus PDFs are not committed.
-
-## Project status
-
-- [x] Corpus extraction — structure-aware, ~1,700 records (1,700 ES / 1,697 EN: paragraphs +
-      glossary + appendix rows)
-- [x] Evaluation set — 45 questions, hand-verified against the source paragraph
-- [x] Indexing — ChromaDB + e5-base, persistent and local (Spanish + English)
-- [x] BM25 baseline + retrieval metrics (skill scores vs BM25 and random)
-- [x] Hybrid retrieval (dense + lexical) — RRF with a fusion-weight sweep
-- [x] Generation stage (Ollama) — measured on 45 questions, **every answer human-verified**
-- [x] Both evaluation notebooks — retrieval and generation
-- [x] Configuration sweeps — `k` (inverted U, frozen at 8) and chunking (split variant, reverted)
-- [x] Interactive dashboard — built (live semantic search; generation stays offline by design)
-- [ ] Dashboard deployed and linked from this page
-- [ ] *(optional)* English-questions ablation, out of curiosity — it does not measure the deployed
-      Spanish system
 
 ## Notes & limitations
 
