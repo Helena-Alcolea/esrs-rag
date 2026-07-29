@@ -43,15 +43,31 @@ VISIBLE = 4  # paragraphs shown expanded; the rest go into ONE expander
 # a perfectly formed question the corpus cannot answer (73.7%). So there are two
 # guards, each aimed at what it can actually detect:
 #   1. IS THIS EVEN LANGUAGE? The tokenizer answers for free: gibberish shatters
-#      into subword pieces ("jdfgsdnfgkjgnkfgdufg" -> 17 pieces for one word),
-#      while no real query in the sample exceeded 2.0 pieces per word.
+#      into subword pieces ("jdfgsdnfgkjgnkfgdufg" -> 17 pieces for one word).
+#      ⚠️ MEASURED LIMITATION — this statistic is a MEAN per word, so it only
+#      behaves on MULTI-WORD queries. On a single word nothing dilutes the
+#      count, and the corpus's own long terms break it: "biodiversidad" and
+#      "biodiversity" 3.0, "sostenibilidad" 3.0, "taxonomía" /
+#      "descarbonización" / "microplásticos" 4.0. The first version cut at 2.5
+#      and flagged every one of them. (The claim it rested on — "no real query
+#      exceeded 2.0" — was true of SENTENCES only: the 28-query dev sample
+#      contained no single-word queries at all.) The cut-off is now 6.0: clear
+#      of real language (max 4.0), well under the long mash (17.0).
+#      → So this guard catches LONG mashes ONLY, and that is declared, not
+#      hidden. Short ones ("aaaa" 2.0, "qwerty" 3.0) are NOT separable from the
+#      norm's own codes, which are legitimate queries ("E1" 2.0, "S1-14" 3.0);
+#      a characters-per-piece statistic does not rescue it either — it fails on
+#      exactly those codes instead (dev sample of 33 real + 15 gibberish
+#      queries; the two classes overlap under both statistics). Two heuristics
+#      measured, both rejected — the same verdict the similarity threshold got
+#      when it was tried as an abstention signal.
 #   2. IS ANYTHING CLOSE? Among queries that ARE language, in-corpus ones scored
 #      83.5-91.9% and out-of-corpus ones 73.7-80.1% — separable, unlike the
 #      gibberish case.
-# ⚠️ Both cut-offs were tuned on a small dev sample (28 queries), NOT validated
-# on the evaluation set. They soften the display; they never delete a result:
+# ⚠️ Both cut-offs were tuned on small dev samples, NOT validated on the
+# evaluation set. They soften the display; they never delete a result:
 # the paragraphs stay one click away.
-MAX_PIECES_PER_WORD = 2.5
+MAX_PIECES_PER_WORD = 6.0
 MIN_TOP_SIMILARITY = 0.82
 
 st.set_page_config(page_title="ESRS·RAG", page_icon="🌿", layout="wide")
