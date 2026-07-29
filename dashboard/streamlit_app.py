@@ -36,6 +36,24 @@ DEFAULT_K = 8  # the system's frozen configuration (k sweep, inverted U)
 K_OPTIONS = [3, 5, 8, 10, 15, 20]
 VISIBLE = 4  # paragraphs shown expanded; the rest go into ONE expander
 
+# ── When to say "no reliable source" ────────────────────────────────────────
+# Retrieval NEVER abstains: it always returns the k nearest paragraphs. Deciding
+# that none of them is worth showing needs a signal, and the obvious one does
+# not work: measured over 28 queries, a keyboard mash scores HIGHER (83.2%) than
+# a perfectly formed question the corpus cannot answer (73.7%). So there are two
+# guards, each aimed at what it can actually detect:
+#   1. IS THIS EVEN LANGUAGE? The tokenizer answers for free: gibberish shatters
+#      into subword pieces ("jdfgsdnfgkjgnkfgdufg" -> 17 pieces for one word),
+#      while no real query in the sample exceeded 2.0 pieces per word.
+#   2. IS ANYTHING CLOSE? Among queries that ARE language, in-corpus ones scored
+#      83.5-91.9% and out-of-corpus ones 73.7-80.1% — separable, unlike the
+#      gibberish case.
+# ⚠️ Both cut-offs were tuned on a small dev sample (28 queries), NOT validated
+# on the evaluation set. They soften the display; they never delete a result:
+# the paragraphs stay one click away.
+MAX_PIECES_PER_WORD = 2.5
+MIN_TOP_SIMILARITY = 0.82
+
 st.set_page_config(page_title="ESRS·RAG", page_icon="🌿", layout="wide")
 
 
@@ -61,6 +79,15 @@ T = {
         more="{n} párrafos más — {span}",
         corpus_kicker="El corpus · un fragmento = un párrafo numerado",
         col_std="Norma", col_share="Peso", total="Total indexado", hits="resultados",
+        weak_kicker="Sin fuente fiable",
+        weak_gibberish="Eso no parece una consulta.",
+        weak_far="Nada del corpus se acerca lo suficiente.",
+        weak_body=("La recuperación **nunca se abstiene**: siempre devuelve los párrafos más "
+                   "cercanos, haya algo relevante o no. Por eso el porcentaje **ordena**, no "
+                   "califica — con una consulta sin sentido los 1.700 párrafos se agolpan en una "
+                   "banda estrecha y el primero no significa nada. El corpus es solo el Anexo "
+                   "ESRS: no contiene datos de empresa, ni legislación nacional, ni guías."),
+        weak_show="Ver de todos modos los párrafos más cercanos",
         empty_kicker="Vacío · primer uso", empty_title="Aún no se ha recuperado nada.",
         empty_body=("1.700 párrafos del Anexo ESRS están indexados y esperando. "
                     "Formula una pregunta de reporting en cualquiera de los dos idiomas."),
@@ -110,6 +137,15 @@ T = {
         more="{n} more paragraphs — {span}",
         corpus_kicker="The corpus · one chunk = one numbered paragraph",
         col_std="Standard", col_share="Share", total="Total indexed", hits="hits",
+        weak_kicker="No reliable source",
+        weak_gibberish="That does not look like a query.",
+        weak_far="Nothing in the corpus comes close enough.",
+        weak_body=("Retrieval **never abstains**: it always returns the nearest paragraphs, "
+                   "whether or not anything is relevant. That is why the percentage **ranks**, it "
+                   "does not grade — for a nonsense query all 1,700 paragraphs crowd into a narrow "
+                   "band and the top one means nothing. The corpus is the ESRS Annex only: no "
+                   "company data, no national law, no guidance."),
+        weak_show="Show the nearest paragraphs anyway",
         empty_kicker="Empty · first run", empty_title="Nothing retrieved yet.",
         empty_body=("1,700 paragraphs of the ESRS Annex are indexed and waiting. "
                     "Ask a reporting question in either language."),
@@ -348,6 +384,14 @@ query = st.session_state.get("query", "").strip()
 
 
 # ─────────────────────────── render helpers ───────────────────────────
+def pieces_per_word(text, tokenizer):
+    """Average subword pieces per word — the tokenizer's own gibberish detector."""
+    words = [w for w in text.split() if any(c.isalpha() for c in w)]
+    if not words:
+        return float("inf")          # digits or symbols only
+    return sum(len(tokenizer.tokenize(w)) for w in words) / len(words)
+
+
 def standard_name(code):
     column = 1 if st.session_state.lang == "es" else 2
     for row in STANDARDS:
@@ -447,6 +491,10 @@ else:
         st.write(t["r_step3"])
         status.update(label=f'{t["r_step3"]} · {t["r_meta"]}', state="complete")
 
+    # Two guards before showing anything as a result (see the constants above).
+    not_language = pieces_per_word(query, model.tokenizer) > MAX_PIECES_PER_WORD
+    nothing_close = float(scores[top[0]]) < MIN_TOP_SIMILARITY
+
     per_standard = {}
     for i in top:
         code = meta["estandares"][i]
@@ -459,37 +507,58 @@ else:
         chips += (f'<span class="e-chip-o">{" · ".join(untouched)} — '
                   f'{t["coverage_none"]}</span>')
 
-    st.markdown(
-        f'<div class="e-soft" style="margin:34px 0 18px"></div>'
-        f'<div style="display:flex;align-items:baseline;gap:20px;margin-bottom:10px">'
-        f'<span class="e-kicker" style="color:var(--e-accent-deep)">{t["brief_kicker"]}</span>'
-        f'<span class="e-meta">{k} {t["m_par"]} · {len(touched)} {t["m_src"]} · '
-        f'{t["m_top"]} {scores[top[0]]*100:.1f}% · {seconds:.1f} s {t["m_cpu"]}</span></div>'
-        f'<p style="margin:0 0 20px;font-weight:600;font-size:25px;line-height:1.25;'
-        f'letter-spacing:-.018em;max-width:28em;color:var(--e-text)">'
-        f'«{html.escape(query)}»</p>'
-        f'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-        f'<span class="e-kicker">{t["coverage"]}</span>{chips}</div>',
-        unsafe_allow_html=True)
-
-    st.markdown(f'<div style="margin:34px 0 12px"><span class="e-kicker">'
-                f'{t["para_kicker"]}</span></div>', unsafe_allow_html=True)
-    for rank, i in enumerate(top[:VISIBLE], start=1):
-        st.markdown(card(rank, i, meta, float(scores[i])), unsafe_allow_html=True)
-
-    rest = list(top[VISIBLE:])
-    if rest:
-        span = f'{scores[rest[0]]*100:.1f}% → {scores[rest[-1]]*100:.1f}%'
-        with st.expander(t["more"].format(n=len(rest), span=span)):
-            for rank, i in enumerate(rest, start=VISIBLE + 1):
+    if not_language or nothing_close:
+        # The design's third state: "no reliable source". The paragraphs are NOT
+        # deleted — they stay one click away, because hiding them would hide the
+        # very behaviour this page exists to show.
+        st.markdown(
+            f'<div class="e-soft" style="margin:34px 0 18px"></div>'
+            f'<div style="padding:20px;background:var(--e-surface);border-radius:2px;'
+            f'box-shadow:0 0 0 1px var(--e-card-ring);max-width:44em">'
+            f'<div class="e-kicker" style="color:var(--e-accent-deep)">{t["weak_kicker"]}</div>'
+            f'<p style="margin:15px 0 10px;font-weight:600;font-size:19px;line-height:1.25;'
+            f'color:var(--e-text)">'
+            f'{t["weak_gibberish"] if not_language else t["weak_far"]}</p>'
+            f'<p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--e-body)">'
+            f'{t["weak_body"]}</p></div>', unsafe_allow_html=True)
+        with st.expander(f'{t["weak_show"]}  ·  {scores[top[0]]*100:.1f}% → '
+                         f'{scores[top[-1]]*100:.1f}%'):
+            for rank, i in enumerate(top, start=1):
                 st.markdown(card(rank, i, meta, float(scores[i])), unsafe_allow_html=True)
+        corpus_section(counts, {})
+    else:
 
-    export_md = f"# {query}\n\n" + "\n\n".join(
-        f'## {rank}. {source_label(meta["anclas"][i])} — {scores[i]*100:.1f}%\n\n'
-        f'{meta["textos"][i]}' for rank, i in enumerate(top, start=1))
-    st.download_button(t["export"], export_md, file_name="esrs-rag.md", mime="text/markdown")
+        st.markdown(
+            f'<div class="e-soft" style="margin:34px 0 18px"></div>'
+            f'<div style="display:flex;align-items:baseline;gap:20px;margin-bottom:10px">'
+            f'<span class="e-kicker" style="color:var(--e-accent-deep)">{t["brief_kicker"]}</span>'
+            f'<span class="e-meta">{k} {t["m_par"]} · {len(touched)} {t["m_src"]} · '
+            f'{t["m_top"]} {scores[top[0]]*100:.1f}% · {seconds:.1f} s {t["m_cpu"]}</span></div>'
+            f'<p style="margin:0 0 20px;font-weight:600;font-size:25px;line-height:1.25;'
+            f'letter-spacing:-.018em;max-width:28em;color:var(--e-text)">'
+            f'«{html.escape(query)}»</p>'
+            f'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+            f'<span class="e-kicker">{t["coverage"]}</span>{chips}</div>',
+            unsafe_allow_html=True)
 
-    corpus_section(counts, per_standard)
+        st.markdown(f'<div style="margin:34px 0 12px"><span class="e-kicker">'
+                    f'{t["para_kicker"]}</span></div>', unsafe_allow_html=True)
+        for rank, i in enumerate(top[:VISIBLE], start=1):
+            st.markdown(card(rank, i, meta, float(scores[i])), unsafe_allow_html=True)
+
+        rest = list(top[VISIBLE:])
+        if rest:
+            span = f'{scores[rest[0]]*100:.1f}% → {scores[rest[-1]]*100:.1f}%'
+            with st.expander(t["more"].format(n=len(rest), span=span)):
+                for rank, i in enumerate(rest, start=VISIBLE + 1):
+                    st.markdown(card(rank, i, meta, float(scores[i])), unsafe_allow_html=True)
+
+        export_md = f"# {query}\n\n" + "\n\n".join(
+            f'## {rank}. {source_label(meta["anclas"][i])} — {scores[i]*100:.1f}%\n\n'
+            f'{meta["textos"][i]}' for rank, i in enumerate(top, start=1))
+        st.download_button(t["export"], export_md, file_name="esrs-rag.md", mime="text/markdown")
+
+        corpus_section(counts, per_standard)
 
 
 # ─────────────────────────── footer ───────────────────────────
