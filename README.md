@@ -4,7 +4,7 @@
 > (ESRS), with **rigorous, baseline-anchored evaluation of both stages** — retrieval *and*
 > generation, measured separately.
 
-## ▶ **[Live dashboard](https://esrs-rag.streamlit.app/)**
+### ▶ **[Live dashboard](https://esrs-rag.streamlit.app/)**
 
 > **Status:** both stages are built, measured and **human-verified**; the configuration sweeps
 > (`k`, chunking) are done and reported; the search dashboard is **live** (link below). What is
@@ -23,7 +23,7 @@ document**; a fine-tuned model would need full retraining and still could not ci
 
 ## Live demo — and what it is *not*
 
-# [esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)
+> [esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)
 
 The hosted dashboard runs **live semantic search** over the 1,700 indexed paragraphs: you type a
 question in Spanish or English and see exactly which paragraphs the system retrieves, with the
