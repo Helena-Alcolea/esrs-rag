@@ -4,6 +4,8 @@
 > (ESRS), with **rigorous, baseline-anchored evaluation of both stages** — retrieval *and*
 > generation, measured separately.
 
+> ▶ **[Live dashboard](https://esrs-rag.streamlit.app/)**
+
 > **Status:** both stages are built, measured and **human-verified**; the configuration sweeps
 > (`k`, chunking) are done and reported; the search dashboard is **live** (link below). What is
 > still open is the next research step — cutting the hallucination rate — see
@@ -21,7 +23,7 @@ document**; a fine-tuned model would need full retraining and still could not ci
 
 ## Live demo — and what it is *not*
 
-### ▶ **[esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)**
+### [esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)
 
 The hosted dashboard runs **live semantic search** over the 1,700 indexed paragraphs: you type a
 question in Spanish or English and see exactly which paragraphs the system retrieves, with the
@@ -183,22 +185,6 @@ A **results showcase**, not the source pipeline:
 - **`dashboard/`** — the Streamlit app: live semantic search over the indexed corpus.
 
 The raw pipeline scripts and the corpus PDFs are not committed.
-
-## Project status
-
-- [x] Corpus extraction — structure-aware, ~1,700 records (1,700 ES / 1,697 EN: paragraphs +
-      glossary + appendix rows)
-- [x] Evaluation set — 45 questions, hand-verified against the source paragraph
-- [x] Indexing — ChromaDB + e5-base, persistent and local (Spanish + English)
-- [x] BM25 baseline + retrieval metrics (skill scores vs BM25 and random)
-- [x] Hybrid retrieval (dense + lexical) — RRF with a fusion-weight sweep
-- [x] Generation stage (Ollama) — measured on 45 questions, **every answer human-verified**
-- [x] Both evaluation notebooks — retrieval and generation
-- [x] Configuration sweeps — `k` (inverted U, frozen at 8) and chunking (split variant, reverted)
-- [x] Interactive dashboard — built (live semantic search; generation stays offline by design)
-- [x] Dashboard deployed — **[esrs-rag.streamlit.app](https://esrs-rag.streamlit.app/)**
-- [ ] **Next:** cut the hallucination rate (33%), attacked *by method on a dev set* — never by
-      tuning against the 45 reported questions
 
 ## Notes & limitations
 
